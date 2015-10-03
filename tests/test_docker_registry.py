@@ -22,9 +22,6 @@ class DockerRegistryTest(TestCase):
         ])
         self.r = DockerRegistry(self.client, self.docker_ip)
 
-    def test_uses_docker_is_true(self):
-        self.assertTrue(self.r.using_docker)
-
     def test_register_creates_service(self):
         svc = self.r.register(self.service, self.nport)
         self.assertIsNotNone(svc)

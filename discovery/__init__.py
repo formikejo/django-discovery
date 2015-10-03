@@ -1,6 +1,6 @@
 import os
 import re
-from discovery.registry import DockerRegistry, DnsRegistry
+from discovery.registry import DockerRegistry, DnsRegistry, EnvironmentRegistry
 
 
 services = None
@@ -13,9 +13,19 @@ def initialize():
     """
     global services
 
+    discovery_mode = os.getenv('DISCOVERY_MODE')
     docker_host = os.getenv('DOCKER_HOST')
 
-    if docker_host:
+    if not discovery_mode and docker_host:
+        discovery_mode = 'docker'
+
+    if not discovery_mode:
+        discovery_mode = 'dns'
+
+    if discovery_mode == 'docker':
+        if not docker_host:
+            raise ValueError("DOCKER_HOST not set")
+
         from docker.client import Client
         from docker.utils import kwargs_from_env
 
@@ -25,5 +35,9 @@ def initialize():
         client = Client(**kwargs)
 
         services = DockerRegistry(client, ip)
-    else:
+    elif discovery_mode == 'env':
+        services = EnvironmentRegistry()
+    elif discovery_mode == 'dns':
         services = DnsRegistry()
+    else:
+        raise ValueError("Unknown DISCOVERY_MODE: {}".format(discovery_mode))

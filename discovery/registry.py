@@ -1,3 +1,4 @@
+import os
 import socket
 
 
@@ -11,14 +12,31 @@ class Service(object):
         self.port = port
 
 
-class DockerRegistry(object):
+class Registry(object):
+    """
+    Base class for registries.
+    """
+
+    def register(self, service, port, protocol='tcp'):
+        raise NotImplementedError()
+
+
+def get_debug_mode(default):
+    debug = os.getenv('DISCOVERY_DEBUG', None)
+    if debug is None:
+        return default
+
+    return debug.lower() in ["1", "true", "t"]
+
+
+class DockerRegistry(Registry):
     """
     The docker registry uses a docker-client to connect to docker.
     """
 
     def __init__(self, client, host):
         self.host = host
-        self.using_docker = True
+        self.debug_mode = get_debug_mode(True)
         self.client = client
 
     def register(self, service, port, protocol='tcp'):
@@ -50,11 +68,17 @@ class DockerRegistry(object):
         return Service(self.host, service_port)
 
 
-class DnsRegistry(object):
+class DnsRegistry(Registry):
     """
     The DNS registry uses DNS lookups for A and CNAMEs. It uses SRV or environment lookups
     to find port numbers.
     """
 
     def __init__(self):
-        self.using_docker = False
+        self.debug_mode = get_debug_mode(False)
+
+
+class EnvironmentRegistry(Registry):
+
+    def __init__(self):
+        self.debug_mode = get_debug_mode(False)

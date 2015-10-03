@@ -24,8 +24,8 @@ Requirements
 ``django-discovery`` requires Python 3 and Django 1.8 because we live in modern times.
 
 
-Example
--------
+Quickstart
+----------
 The following example assumes a Django application that requires a MySQL database. The service itself is provided as
 follows:
 
@@ -51,7 +51,7 @@ follows:
 
     from discovery import services
 
-    db = services.register('my_db', 3306)
+    db = services.register('my_db', 'mysql')    # you can replace 'mysql' with 3306
 
     DATABASES = {
         'default': {
@@ -64,7 +64,8 @@ follows:
         }
     }
 
-    DEBUG = services.using_docker()
+    DEBUG = services.debug_mode
+
 
 License
 -------
