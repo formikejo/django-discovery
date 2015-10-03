@@ -29,6 +29,14 @@ def get_debug_mode(default):
     return debug.lower() in ["1", "true", "t"]
 
 
+def get_port_by_name(port):
+    try:
+        port = socket.getaddrinfo('127.0.0.1', port)[0][-1][-1]
+    except socket.gaierror:
+        raise ValueError("Could not resolve named port {}".format(port))
+    return port
+
+
 class DockerRegistry(Registry):
     """
     The docker registry uses a docker-client to connect to docker.
@@ -41,10 +49,7 @@ class DockerRegistry(Registry):
 
     def register(self, service, port, protocol='tcp'):
         if isinstance(port, str):
-            try:
-                port = socket.getaddrinfo('127.0.0.1', port)[0][-1][-1]
-            except socket.gaierror:
-                raise ValueError("Could not resolve named port {}".format(port))
+            port = get_port_by_name(port)
 
         candidates = self.client.containers(filters=dict(
             status='running',
@@ -82,3 +87,19 @@ class EnvironmentRegistry(Registry):
 
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
+
+    def register(self, service, port, protocol="tcp"):
+        if isinstance(port, str):
+            port = get_port_by_name(port)
+
+        service_key = "{}_PORT_{}_{}_ADDR".format(service.upper(), port, protocol.upper())
+        port_key = "{}_PORT_{}_{}_PORT".format(service.upper(), port, protocol.upper())
+        env = os.environ
+
+        if service_key not in env:
+            raise ValueError("Service {} not found under {}".format(service, service_key))
+
+        if port_key not in env:
+            raise ValueError("Port {} not found under {}".format(port, port_key))
+
+        return Service(env[service_key], int(env[port_key]))
