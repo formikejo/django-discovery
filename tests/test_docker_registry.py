@@ -1,0 +1,38 @@
+from unittest import TestCase
+from unittest.mock import MagicMock
+import docker
+from discovery import DockerRegistry
+
+
+class DockerRegistryTest(TestCase):
+
+    def setUp(self):
+        self.service = 'my_db'
+        self.nport = 3306
+        self.sport = 'mysql'
+
+        self.docker_ip = '172.18.0.23'
+        self.service_port = 27384
+
+        self.client = docker.Client()
+        self.client.containers = MagicMock(return_value=[
+            dict(Ports=[
+                dict(Type="tcp", PrivatePort=self.nport, PublicPort=self.service_port)
+            ], Names=['mock-container'])
+        ])
+        self.r = DockerRegistry(self.client, self.docker_ip)
+
+    def test_uses_docker_is_true(self):
+        self.assertTrue(self.r.using_docker)
+
+    def test_register_creates_service(self):
+        svc = self.r.register(self.service, self.nport)
+        self.assertIsNotNone(svc)
+
+    def test_registered_service_resolves_host(self):
+        svc = self.r.register(self.service, self.nport)
+        self.assertEqual(svc.host, self.docker_ip)
+
+    def test_registered_service_resolves_port(self):
+        svc = self.r.register(self.service, self.nport)
+        self.assertEqual(svc.port, self.service_port)

@@ -48,5 +48,8 @@ setup(
     install_requires=[
         'docker-py>=1.4.0',
         'dnspython3>=1.12.0',
+        'Django>=1.8',
     ],
+
+    test_suite="tests",
 )
