@@ -36,3 +36,12 @@ class DockerRegistryTest(TestCase):
     def test_registered_service_resolves_port(self):
         svc = self.r.register(self.service, self.nport)
         self.assertEqual(svc.port, self.service_port)
+
+    def test_register_fails_if_no_service_match(self):
+        self.client.containers = MagicMock(return_value=[])
+        self.assertRaises(ValueError, self.r.register, 'service', 'port')
+
+    def test_register_fails_if_no_port_match(self):
+        self.assertRaises(ValueError, self.r.register, self.service, self.nport + 1)
+
+
