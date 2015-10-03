@@ -44,4 +44,7 @@ class DockerRegistryTest(TestCase):
     def test_register_fails_if_no_port_match(self):
         self.assertRaises(ValueError, self.r.register, self.service, self.nport + 1)
 
+    def test_register_fails_if_not_protocol_match(self):
+        self.assertRaises(ValueError, self.r.register, self.service, self.nport, protocol="udp")
+
 
