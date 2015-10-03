@@ -1,3 +1,6 @@
+import socket
+
+
 class Service(object):
     """
     Models a service.
@@ -19,6 +22,12 @@ class DockerRegistry(object):
         self.client = client
 
     def register(self, service, port, protocol='tcp'):
+        if isinstance(port, str):
+            try:
+                port = socket.getaddrinfo('127.0.0.1', port)[0][-1][-1]
+            except socket.gaierror:
+                raise ValueError("Could not resolve named port {}".format(port))
+
         candidates = self.client.containers(filters=dict(
             status='running',
             label='com.docker.compose.service={}'.format(service)

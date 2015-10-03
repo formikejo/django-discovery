@@ -39,12 +39,19 @@ class DockerRegistryTest(TestCase):
 
     def test_register_fails_if_no_service_match(self):
         self.client.containers = MagicMock(return_value=[])
-        self.assertRaises(ValueError, self.r.register, 'service', 'port')
+        self.assertRaises(ValueError, self.r.register, 'service', 'http')
 
     def test_register_fails_if_no_port_match(self):
         self.assertRaises(ValueError, self.r.register, self.service, self.nport + 1)
 
     def test_register_fails_if_not_protocol_match(self):
         self.assertRaises(ValueError, self.r.register, self.service, self.nport, protocol="udp")
+
+    def test_register_resolves_named_ports(self):
+        svc = self.r.register(self.service, self.sport)
+        self.assertEqual(svc.port, self.service_port)
+
+    def test_register_fails_on_weird_named_ports(self):
+        self.assertRaises(ValueError, self.r.register, self.service, 'non-existing-service-port-name')
 
 
