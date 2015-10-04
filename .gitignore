@@ -3,3 +3,4 @@
 django_discovery.egg-info
 __pycache__
 dist/
+build/
