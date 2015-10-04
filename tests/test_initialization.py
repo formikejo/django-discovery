@@ -45,6 +45,10 @@ class InitializeServicesTest(TestCase):
 
         self.assertRaises(ValueError, discovery.initialize)
 
+    def test_error_for_unknown(self):
+        os.environ['DISCOVERY_MODE'] = "unknown-mode"
+        self.assertRaises(ValueError, discovery.initialize)
+
 
 class DebugModeTest(TestCase):
     def test_default_for_docker(self):
@@ -73,5 +77,3 @@ class DebugModeTest(TestCase):
         os.environ['DISCOVERY_DEBUG'] = "1"
         r = EnvironmentRegistry()
         self.assertTrue(r.debug_mode)
-
-

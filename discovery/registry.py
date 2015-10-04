@@ -1,5 +1,6 @@
 import os
 import socket
+
 import dns.resolver
 
 
@@ -8,9 +9,10 @@ class Service(object):
     Models a service.
     """
 
-    def __init__(self, host, port):
+    def __init__(self, host, port, secrets):
         self.host = host
         self.port = port
+        self.secrets = secrets
 
 
 class Registry(object):
@@ -18,7 +20,7 @@ class Registry(object):
     Base class for registries.
     """
 
-    def register(self, service, port, protocol='tcp'):
+    def register(self, service, port, protocol='tcp', secrets=None):
         raise NotImplementedError()
 
 
@@ -60,9 +62,37 @@ class DockerRegistry(Registry):
         self.debug_mode = get_debug_mode(True)
         self.client = client
 
-    def register(self, service, port, protocol='tcp'):
+    def register(self, service, port, protocol='tcp', secrets=None):
         port = get_port_by_name(port, protocol)
 
+        container = self.get_container_for(service)
+        service_port = self.get_port_mapping_in(container, port, protocol)
+
+        container_name = container['Names'][0]
+        resolved_secrets = self.resolve_secrets_in(container_name, secrets)
+
+        return Service(self.host, service_port, resolved_secrets)
+
+    def resolve_secrets_in(self, container_name, secrets):
+        container_info = self.client.inspect_container(container_name)
+        container_env = container_info['Config']['Env']
+        resolved_secrets = dict()
+        for s in secrets or []:
+            key = s.upper()
+            if key not in container_env:
+                raise ValueError("Secret {} not found in {}".format(key, container_name))
+            resolved_secrets[s] = container_env[key]
+        return resolved_secrets
+
+    # noinspection PyMethodMayBeStatic
+    def get_port_mapping_in(self, container, port, protocol):
+        for p in container['Ports']:
+            if p['Type'] == protocol and p['PrivatePort'] == port:
+                return p['PublicPort']
+
+        raise ValueError("Port {} was not defined for container {}".format(port, container['Names'][0]))
+
+    def get_container_for(self, service):
         candidates = self.client.containers(filters=dict(
             status='running',
             label='com.docker.compose.service={}'.format(service)
@@ -71,18 +101,7 @@ class DockerRegistry(Registry):
         if not candidates:
             raise ValueError("No running service found: {}".format(service))
 
-        container = candidates[0]
-
-        service_port = None
-        for p in container['Ports']:
-            if p['Type'] == protocol and p['PrivatePort'] == port:
-                service_port = p['PublicPort']
-                break
-
-        if not service_port:
-            raise ValueError("Port {} was not defined for container {}".format(port, container['Names'][0]))
-
-        return Service(self.host, service_port)
+        return candidates[0]
 
 
 class DnsRegistry(Registry):
@@ -94,7 +113,7 @@ class DnsRegistry(Registry):
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
 
-    def register(self, service, port, protocol='tcp'):
+    def register(self, service, port, protocol='tcp', secrets=None):
         port = get_name_by_port(port, protocol)
 
         try:
@@ -114,15 +133,14 @@ class DnsRegistry(Registry):
         if not p:
             raise ValueError("Could not find port for service {}".format(svc))
 
-        return Service(ip, p)
+        return Service(ip, p, dict())
 
 
 class EnvironmentRegistry(Registry):
-
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
 
-    def register(self, service, port, protocol="tcp"):
+    def register(self, service, port, protocol="tcp", secrets=None):
         port = get_port_by_name(port, protocol)
 
         service_key = "{}_PORT_{}_{}_ADDR".format(service.upper(), port, protocol.upper())
@@ -135,4 +153,11 @@ class EnvironmentRegistry(Registry):
         if port_key not in env:
             raise ValueError("Port {} not found under {}".format(port, port_key))
 
-        return Service(env[service_key], int(env[port_key]))
+        resolved_secrets = dict()
+        for s in secrets or []:
+            key = "{}_ENV_{}".format(service.upper(), s.upper())
+            if key not in env:
+                raise ValueError("Secret {} not found under {}".format(s, key))
+            resolved_secrets[s] = env[key]
+
+        return Service(env[service_key], int(env[port_key]), resolved_secrets)

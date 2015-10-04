@@ -1,25 +1,39 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
+
 import docker
+
 from discovery import DockerRegistry
 
 
 class DockerRegistryTest(TestCase):
-
     def setUp(self):
         self.service = 'my_db'
+        self.service_ip = '172.18.0.23'
+
         self.nport = 3306
         self.sport = 'mysql'
-
-        self.service_ip = '172.18.0.23'
         self.service_port = 27384
+
+        self.secret = 'my_secret'
+        self.secret_value = 'my_value'
 
         self.client = docker.Client()
         self.client.containers = MagicMock(return_value=[
-            dict(Ports=[
-                dict(Type="tcp", PrivatePort=self.nport, PublicPort=self.service_port)
-            ], Names=['mock-container'])
+            dict(
+                Ports=[
+                    dict(Type="tcp", PrivatePort=self.nport, PublicPort=self.service_port)
+                ],
+                Names=['mock-container']
+            )
         ])
+        self.client.inspect_container = MagicMock(return_value = dict(
+            Config=dict(
+                Env=dict(
+                    MY_SECRET=self.secret_value
+                )
+            )
+        ))
         self.r = DockerRegistry(self.client, self.service_ip)
 
     def test_register_creates_service(self):
@@ -51,4 +65,9 @@ class DockerRegistryTest(TestCase):
     def test_register_fails_on_weird_named_ports(self):
         self.assertRaises(ValueError, self.r.register, self.service, 'non-existing-service-port-name')
 
+    def test_service_secret_resolves_secret(self):
+        svc = self.r.register(self.service, self.nport, secrets=[self.secret])
+        self.assertEquals(svc.secrets[self.secret], self.secret_value)
 
+    def test_register_fails_on_missing_service_secret(self):
+        self.assertRaises(ValueError, self.r.register, self.service, self.nport, secrets=['unknown-secret'])

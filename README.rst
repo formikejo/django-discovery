@@ -51,14 +51,14 @@ follows:
 
     from discovery import services
 
-    db = services.register('my_db', 'mysql')    # you can replace 'mysql' with 3306
+    db = services.register('my_db', 'mysql', secrets=['mysql_user', 'mysql_database', 'mysql_password'])
 
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'database_name',
-            'USER': 'database_user',
-            'PASSWORD': 'alsosecret',
+            'NAME': db.secrets['mysql_database'],
+            'USER': db.secrets['mysql_user'],
+            'PASSWORD': db.secrets['mysql_password'],
             'HOST': db.host,
             'PORT': db.port,
         }
