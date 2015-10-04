@@ -1,6 +1,6 @@
 import os
 import socket
-import dns
+import dns.resolver
 
 
 class Service(object):
