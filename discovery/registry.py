@@ -121,19 +121,30 @@ class DnsRegistry(Registry):
         except socket.gaierror:
             raise ValueError("Could not resolve service {}".format(service))
 
-        p = None
+        p = self.resolve_port(port, protocol, service)
+
+        resolved_secrets = dict()
+        for s in secrets or []:
+            secrets_file = '/var/secrets/{}/{}'.format(service, s)
+            try:
+                with open(secrets_file) as f:
+                    resolved_secrets[s] = f.read()
+            except OSError:
+                raise ValueError("Could not find secrets file {}".format(secrets_file))
+
+        return Service(ip, p, resolved_secrets)
+
+    # noinspection PyMethodMayBeStatic
+    def resolve_port(self, port, protocol, service):
         svc = "_{}._{}.{}".format(port, protocol, service)
         try:
             result = dns.resolver.query(svc, "SRV")
             if len(result):
-                p = result[0].port
+                return result[0].port
         except:
             raise ValueError("Could not resolve service {}".format(svc))
 
-        if not p:
-            raise ValueError("Could not find port for service {}".format(svc))
-
-        return Service(ip, p, dict())
+        raise ValueError("Could not find port for service {}".format(svc))
 
 
 class EnvironmentRegistry(Registry):
