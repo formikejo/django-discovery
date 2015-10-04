@@ -67,6 +67,10 @@ follows:
     DEBUG = services.debug_mode
 
 
+Full Documentation
+------------------
+Working on it...
+
 License
 -------
 This project is licensed under the MIT license.
