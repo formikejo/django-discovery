@@ -11,7 +11,7 @@ class DockerRegistryTest(TestCase):
         self.nport = 3306
         self.sport = 'mysql'
 
-        self.docker_ip = '172.18.0.23'
+        self.service_ip = '172.18.0.23'
         self.service_port = 27384
 
         self.client = docker.Client()
@@ -20,7 +20,7 @@ class DockerRegistryTest(TestCase):
                 dict(Type="tcp", PrivatePort=self.nport, PublicPort=self.service_port)
             ], Names=['mock-container'])
         ])
-        self.r = DockerRegistry(self.client, self.docker_ip)
+        self.r = DockerRegistry(self.client, self.service_ip)
 
     def test_register_creates_service(self):
         svc = self.r.register(self.service, self.nport)
@@ -28,7 +28,7 @@ class DockerRegistryTest(TestCase):
 
     def test_registered_service_resolves_host(self):
         svc = self.r.register(self.service, self.nport)
-        self.assertEqual(svc.host, self.docker_ip)
+        self.assertEqual(svc.host, self.service_ip)
 
     def test_registered_service_resolves_port(self):
         svc = self.r.register(self.service, self.nport)

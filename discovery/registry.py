@@ -1,5 +1,6 @@
 import os
 import socket
+import dns
 
 
 class Service(object):
@@ -29,12 +30,24 @@ def get_debug_mode(default):
     return debug.lower() in ["1", "true", "t"]
 
 
-def get_port_by_name(port):
+def get_port_by_name(port, protocol):
+    if isinstance(port, int):
+        return port
+
     try:
-        port = socket.getaddrinfo('127.0.0.1', port)[0][-1][-1]
-    except socket.gaierror:
+        return socket.getservbyname(port, protocol)
+    except OSError:
         raise ValueError("Could not resolve named port {}".format(port))
-    return port
+
+
+def get_name_by_port(port, protocol):
+    if isinstance(port, str):
+        return port
+
+    try:
+        return socket.getservbyport(port, protocol)
+    except OSError:
+        raise ValueError("Could not resolve numbered port {}".format(port))
 
 
 class DockerRegistry(Registry):
@@ -48,8 +61,7 @@ class DockerRegistry(Registry):
         self.client = client
 
     def register(self, service, port, protocol='tcp'):
-        if isinstance(port, str):
-            port = get_port_by_name(port)
+        port = get_port_by_name(port, protocol)
 
         candidates = self.client.containers(filters=dict(
             status='running',
@@ -82,6 +94,28 @@ class DnsRegistry(Registry):
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
 
+    def register(self, service, port, protocol='tcp'):
+        port = get_name_by_port(port, protocol)
+
+        try:
+            ip = socket.gethostbyname(service)
+        except socket.gaierror:
+            raise ValueError("Could not resolve service {}".format(service))
+
+        p = None
+        svc = "_{}._{}.{}".format(port, protocol, service)
+        try:
+            result = dns.resolver.query(svc, "SRV")
+            if len(result):
+                p = result[0].port
+        except:
+            raise ValueError("Could not resolve service {}".format(svc))
+
+        if not p:
+            raise ValueError("Could not find port for service {}".format(svc))
+
+        return Service(ip, p)
+
 
 class EnvironmentRegistry(Registry):
 
@@ -89,8 +123,7 @@ class EnvironmentRegistry(Registry):
         self.debug_mode = get_debug_mode(False)
 
     def register(self, service, port, protocol="tcp"):
-        if isinstance(port, str):
-            port = get_port_by_name(port)
+        port = get_port_by_name(port, protocol)
 
         service_key = "{}_PORT_{}_{}_ADDR".format(service.upper(), port, protocol.upper())
         port_key = "{}_PORT_{}_{}_PORT".format(service.upper(), port, protocol.upper())
