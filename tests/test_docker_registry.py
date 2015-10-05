@@ -16,7 +16,7 @@ class DockerRegistryTest(TestCase):
         self.service_port = 27384
 
         self.secret = 'my_secret'
-        self.secret_value = 'my_value'
+        self.secret_value = 'my=value'
 
         self.client = docker.Client()
         self.client.containers = MagicMock(return_value=[
@@ -29,9 +29,9 @@ class DockerRegistryTest(TestCase):
         ])
         self.client.inspect_container = MagicMock(return_value = dict(
             Config=dict(
-                Env=dict(
-                    MY_SECRET=self.secret_value
-                )
+                Env=[
+                    "MY_SECRET=my=value",
+                ]
             )
         ))
         self.r = DockerRegistry(self.client, self.service_ip)

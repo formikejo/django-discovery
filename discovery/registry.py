@@ -76,12 +76,18 @@ class DockerRegistry(Registry):
     def resolve_secrets_in(self, container_name, secrets):
         container_info = self.client.inspect_container(container_name)
         container_env = container_info['Config']['Env']
+        env = dict()
+
+        for e in container_env:
+            key, value = e.split('=', 1)
+            env[key] = value
+
         resolved_secrets = dict()
         for s in secrets or []:
             key = s.upper()
-            if key not in container_env:
+            if key not in env:
                 raise ValueError("Secret {} not found in {}".format(key, container_name))
-            resolved_secrets[s] = container_env[key]
+            resolved_secrets[s] = env[key]
         return resolved_secrets
 
     # noinspection PyMethodMayBeStatic

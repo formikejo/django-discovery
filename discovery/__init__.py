@@ -41,3 +41,5 @@ def initialize():
         services = DnsRegistry()
     else:
         raise ValueError("Unknown DISCOVERY_MODE: {}".format(discovery_mode))
+
+initialize()
