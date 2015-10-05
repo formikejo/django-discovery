@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='discovery',
+    name='django_discovery',
 
     version='0.0.2',
 
