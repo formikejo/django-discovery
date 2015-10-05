@@ -43,7 +43,7 @@ setup(
 
     keywords='django service-discovery docker docker-compose',
 
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
 
     install_requires=[
         'docker-py>=1.4.0',
