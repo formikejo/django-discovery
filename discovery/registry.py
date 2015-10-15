@@ -20,7 +20,7 @@ class Registry(object):
     Base class for registries.
     """
 
-    def register(self, service, port, protocol='tcp', secrets=None):
+    def register(self, service, port_number, port_name, protocol='tcp', secrets=None):
         raise NotImplementedError()
 
 
@@ -30,26 +30,6 @@ def get_debug_mode(default):
         return default
 
     return debug.lower() in ["1", "true", "t"]
-
-
-def get_port_by_name(port, protocol):
-    if isinstance(port, int):
-        return port
-
-    try:
-        return socket.getservbyname(port, protocol)
-    except OSError:
-        raise ValueError("Could not resolve named port {}".format(port))
-
-
-def get_name_by_port(port, protocol):
-    if isinstance(port, str):
-        return port
-
-    try:
-        return socket.getservbyport(port, protocol)
-    except OSError:
-        raise ValueError("Could not resolve numbered port {}".format(port))
 
 
 class DockerRegistry(Registry):
@@ -62,11 +42,9 @@ class DockerRegistry(Registry):
         self.debug_mode = get_debug_mode(True)
         self.client = client
 
-    def register(self, service, port, protocol='tcp', secrets=None):
-        port = get_port_by_name(port, protocol)
-
+    def register(self, service, port_number, port_name, protocol='tcp', secrets=None):
         container = self.get_container_for(service)
-        service_port = self.get_port_mapping_in(container, port, protocol)
+        service_port = self.get_port_mapping_in(container, port_number, protocol)
 
         container_name = container['Names'][0]
         resolved_secrets = self.resolve_secrets_in(container_name, secrets)
@@ -84,7 +62,7 @@ class DockerRegistry(Registry):
 
         resolved_secrets = dict()
         for s in secrets or []:
-            key = s.upper()
+            key = _env_key(s)
             if key not in env:
                 raise ValueError("Secret {} not found in {}".format(key, container_name))
             resolved_secrets[s] = env[key]
@@ -121,8 +99,8 @@ class DnsRegistry(Registry):
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
 
-    def register(self, service, port, protocol='tcp', secrets=None):
-        port = get_name_by_port(port, protocol)
+    def register(self, service, port_number, port_name, protocol='tcp', secrets=None):
+        port = port_name
 
         try:
             ip = socket.gethostbyname(service)
@@ -155,19 +133,19 @@ class DnsRegistry(Registry):
         raise ValueError("Could not find port for service {}".format(svc))
 
 
-def _env_key(service):
-    return service.upper().replace('-', '_')
+def _env_key(pattern, *args):
+    return pattern.format(*args).upper().replace('-', '_')
 
 
 class EnvironmentRegistry(Registry):
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
 
-    def register(self, service, port, protocol="tcp", secrets=None):
-        port = get_port_by_name(port, protocol)
+    def register(self, service, port_number, port_name, protocol="tcp", secrets=None):
+        port = port_number
 
-        service_key = "{}_PORT_{}_{}_ADDR".format(_env_key(service), port, protocol.upper())
-        port_key = "{}_PORT_{}_{}_PORT".format(_env_key(service), port, protocol.upper())
+        service_key = _env_key('{}_PORT_{}_{}_ADDR', service, port, protocol)
+        port_key = _env_key("{}_PORT_{}_{}_PORT", service, port, protocol)
         env = os.environ
 
         if service_key not in env:
@@ -178,7 +156,7 @@ class EnvironmentRegistry(Registry):
 
         resolved_secrets = dict()
         for s in secrets or []:
-            key = "{}_ENV_{}".format(_env_key(service), _env_key(s))
+            key = _env_key('{}_ENV_{}', service, s)
             if key not in env:
                 raise ValueError("Secret {} not found under {}".format(s, key))
             resolved_secrets[s] = env[key]
