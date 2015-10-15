@@ -155,6 +155,10 @@ class DnsRegistry(Registry):
         raise ValueError("Could not find port for service {}".format(svc))
 
 
+def _env_key(service):
+    return service.upper().replace('-', '_')
+
+
 class EnvironmentRegistry(Registry):
     def __init__(self):
         self.debug_mode = get_debug_mode(False)
@@ -162,8 +166,8 @@ class EnvironmentRegistry(Registry):
     def register(self, service, port, protocol="tcp", secrets=None):
         port = get_port_by_name(port, protocol)
 
-        service_key = "{}_PORT_{}_{}_ADDR".format(service.upper(), port, protocol.upper())
-        port_key = "{}_PORT_{}_{}_PORT".format(service.upper(), port, protocol.upper())
+        service_key = "{}_PORT_{}_{}_ADDR".format(_env_key(service), port, protocol.upper())
+        port_key = "{}_PORT_{}_{}_PORT".format(_env_key(service), port, protocol.upper())
         env = os.environ
 
         if service_key not in env:
@@ -174,7 +178,7 @@ class EnvironmentRegistry(Registry):
 
         resolved_secrets = dict()
         for s in secrets or []:
-            key = "{}_ENV_{}".format(service.upper(), s.upper())
+            key = "{}_ENV_{}".format(_env_key(service), _env_key(s))
             if key not in env:
                 raise ValueError("Secret {} not found under {}".format(s, key))
             resolved_secrets[s] = env[key]

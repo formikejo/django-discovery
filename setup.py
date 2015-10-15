@@ -13,7 +13,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='django_discovery',
 
-    version='0.0.4',
+    version='0.0.5',
 
     description='Docker service discovery for Django',
     long_description=long_description,
