@@ -94,7 +94,9 @@ class DockerRegistry(Registry):
     def get_port_mapping_in(self, container, port, protocol):
         for p in container['Ports']:
             if p['Type'] == protocol and p['PrivatePort'] == port:
-                return p['PublicPort']
+                result = p.get('PublicPort')
+                if result:
+                    return result
 
         raise ValueError("Port {} was not defined for container {}".format(port, container['Names'][0]))
 
